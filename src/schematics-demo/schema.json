@@ -37,6 +37,31 @@
       "type": "boolean",
       "description": "Do not install dependency packages.",
       "default": true
+    },
+    "zendeskDisplayName": {
+      "type": "string",
+      "description": "Display name for the generated Zendesk app."
+    },
+    "zendeskAuthorName": {
+      "type": "string",
+      "description": "Author name to record in the Zendesk app manifest."
+    },
+    "zendeskAuthorEmail": {
+      "type": "string",
+      "description": "Support or author email to record in the Zendesk app manifest.",
+      "format": "email"
+    },
+    "zendeskDefaultLocale": {
+      "type": "string",
+      "description": "Default locale to configure inside the Zendesk manifest and translations."
+    },
+    "zendeskShortDescription": {
+      "type": "string",
+      "description": "Override the short description used within Zendesk translations."
+    },
+    "zendeskLongDescription": {
+      "type": "string",
+      "description": "Override the long description used within Zendesk translations."
     }
   },
   "required": ["name"],

@@ -40,7 +40,50 @@ The `.schematics/` folder is Git-ignored, so repeated runs stay out of version c
    ng g schematics-demo:schematics-demo --name my-app
    ```
 
-   All options mirror `ng new`; SCSS, zoneless mode, no SSR, and no AI config are preselected.
+All options mirror `ng new`; SCSS, zoneless mode, no SSR, and no AI config are preselected.
+
+### Zendesk Extras
+
+The schematic also scaffolds a Zendesk app bundle alongside the Angular workspace. The following options let you customize the generated Zendesk assets without post-editing:
+
+- `--zendesk-display-name` – Defaults to the humanized `name`. Used for manifest, README, UI messaging.
+- `--zendesk-author-name` – Defaults to the display name.
+- `--zendesk-author-email` – Defaults to `support@<dasherized-name>.com`.
+- `--zendesk-default-locale` – Defaults to `en`.
+- `--zendesk-short-description` – Defaults to an auto-generated short description per locale.
+- `--zendesk-long-description` – Defaults to an auto-generated long description per locale.
+
+Each of these values flows into the manifest (`zendesk/manifest.json`), translations (all files under `zendesk/translations/`), README, iframe template, and the generated `zcli.json`.
+
+Example Angular CLI invocation with all overrides specified:
+
+```bash
+ng g schematics-demo:schematics-demo \
+  --name support-buddy \
+  --zendesk-display-name "Support Buddy" \
+  --zendesk-author-name "Acme Support" \
+  --zendesk-author-email help@acme.com \
+  --zendesk-default-locale fr \
+  --zendesk-short-description "Short summary for Support Buddy." \
+  --zendesk-long-description "Extended summary for Support Buddy."
+```
+
+The same options are available when calling the schematic directly:
+
+```bash
+schematics ./dist/src/collection.json:schematics-demo \
+  --name support-buddy \
+  --skip-install \
+  --debug=false \
+  --zendesk-display-name "Support Buddy" \
+  --zendesk-author-name "Acme Support" \
+  --zendesk-author-email help@acme.com \
+  --zendesk-default-locale fr \
+  --zendesk-short-description "Short summary for Support Buddy." \
+  --zendesk-long-description "Extended summary for Support Buddy."
+```
+
+Interactive prompts are available for these options when running through the Angular CLI (leave a value blank to accept the default). Use `--interactive=false` (or set `CI=true`) to suppress questions in automated scripts, in which case the defaults above are applied automatically.
 
 ## Manual CLI Invocation
 
@@ -69,7 +112,7 @@ npm publish
 
 ### Zendesk
 
-To generate new zendesk data, use this command
+To generate new Zendesk data, you can bootstrap a fresh bundle with:
 
 ```bash
 npx @zendesk/zcli apps:new

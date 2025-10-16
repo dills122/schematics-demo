@@ -1,0 +1,8 @@
+{
+  "app": {
+    "name": "Zen Tunes",
+    "short_description": "Écoutez les meilleures musiques Zen Tunes dans votre centre d'assistance.",
+    "long_description": "Écoutez les meilleures musiques Zen Tunes dans votre centre d'assistance et profitez des rythmes proposés.",
+    "installation_instructions": "Cliquez simplement sur installer."
+  }
+}

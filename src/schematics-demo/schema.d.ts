@@ -6,4 +6,10 @@ export interface Schema {
   standalone?: boolean;
   zoneless?: boolean;
   skipInstall?: boolean;
+  zendeskDisplayName?: string;
+  zendeskAuthorName?: string;
+  zendeskAuthorEmail?: string;
+  zendeskDefaultLocale?: string;
+  zendeskShortDescription?: string;
+  zendeskLongDescription?: string;
 }

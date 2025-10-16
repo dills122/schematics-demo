@@ -9,6 +9,7 @@ import { strings } from '@angular-devkit/core';
 import { Schema } from './schema';
 import { readFileSync, readdirSync, statSync } from 'fs';
 import * as path from 'path';
+import { isObservable, lastValueFrom } from 'rxjs';
 
 const { version: angularCliVersion } = require('@schematics/angular/package.json') as {
   version: string;
@@ -32,13 +33,7 @@ export function schematicsDemo(options: Schema): Rule {
       .join(' ');
   };
 
-  const appDisplayName =
-    options.name && options.name.length > 0
-      ? toDisplayName(options.name)
-      : 'Zendesk App';
-  const supportEmail = `support@${dasherizedName}.com`;
-
-  const normalizedOptions = {
+  let normalizedOptions = {
     ...options,
     name: dasherizedName,
     directory: defaultDirectory,
@@ -47,6 +42,72 @@ export function schematicsDemo(options: Schema): Rule {
     standalone: options.standalone ?? true,
     zoneless: options.zoneless ?? true,
     skipInstall: options.skipInstall ?? true,
+    zendeskDisplayName: options.zendeskDisplayName,
+    zendeskAuthorName: options.zendeskAuthorName,
+    zendeskAuthorEmail: options.zendeskAuthorEmail,
+    zendeskDefaultLocale: options.zendeskDefaultLocale,
+    zendeskShortDescription: options.zendeskShortDescription,
+    zendeskLongDescription: options.zendeskLongDescription,
+  };
+
+  const getZendeskContext = () => {
+    const fallbackDisplayName =
+      options.name && options.name.length > 0
+        ? toDisplayName(options.name)
+        : 'Zendesk App';
+    const appDisplayName =
+      normalizedOptions.zendeskDisplayName &&
+      normalizedOptions.zendeskDisplayName.trim().length > 0
+        ? normalizedOptions.zendeskDisplayName.trim()
+        : fallbackDisplayName;
+    const authorName =
+      normalizedOptions.zendeskAuthorName &&
+      normalizedOptions.zendeskAuthorName.trim().length > 0
+        ? normalizedOptions.zendeskAuthorName.trim()
+        : appDisplayName;
+    const authorEmail =
+      normalizedOptions.zendeskAuthorEmail &&
+      normalizedOptions.zendeskAuthorEmail.trim().length > 0
+        ? normalizedOptions.zendeskAuthorEmail.trim()
+        : `support@${dasherizedName}.com`;
+    const defaultLocale =
+      normalizedOptions.zendeskDefaultLocale &&
+      normalizedOptions.zendeskDefaultLocale.trim().length > 0
+        ? normalizedOptions.zendeskDefaultLocale.trim()
+        : 'en';
+    const shortDescriptionOverride =
+      normalizedOptions.zendeskShortDescription &&
+      normalizedOptions.zendeskShortDescription.trim().length > 0
+        ? normalizedOptions.zendeskShortDescription.trim()
+        : undefined;
+    const longDescriptionOverride =
+      normalizedOptions.zendeskLongDescription &&
+      normalizedOptions.zendeskLongDescription.trim().length > 0
+        ? normalizedOptions.zendeskLongDescription.trim()
+        : undefined;
+
+    const templateVariables: Record<string, string> = {
+      appDisplayName,
+      authorName,
+      authorEmail,
+      defaultLocale,
+      shortDescription:
+        shortDescriptionOverride ?? `${appDisplayName} short description.`,
+      longDescription:
+        longDescriptionOverride ?? `${appDisplayName} long description.`,
+      readmeDescription:
+        shortDescriptionOverride ?? `[brief description of ${appDisplayName}]`,
+    };
+
+    return {
+      appDisplayName,
+      authorName,
+      authorEmail,
+      defaultLocale,
+      shortDescriptionOverride,
+      longDescriptionOverride,
+      templateVariables,
+    };
   };
 
   const normalizedDirectory =
@@ -89,6 +150,116 @@ export function schematicsDemo(options: Schema): Rule {
     return tree;
   };
 
+  const promptForZendeskOptions: Rule = async (
+    tree: Tree,
+    context: SchematicContext
+  ) => {
+    const workflow = context.engine.workflow as
+      | {
+          options?: { interactive?: boolean };
+          promptProvider?: (
+            definitions: Array<{
+              id: string;
+              type: string;
+              message: string;
+              default?: string;
+            }>
+          ) => unknown;
+        }
+      | undefined;
+
+    if (!workflow || workflow.options?.interactive === false) {
+      return tree;
+    }
+
+    const promptProvider = workflow.promptProvider;
+    if (!promptProvider) {
+      return tree;
+    }
+
+    const prompts: Array<{
+      id: string;
+      type: string;
+      message: string;
+      default?: string;
+    }> = [];
+
+    if (!normalizedOptions.zendeskDisplayName) {
+      prompts.push({
+        id: 'zendeskDisplayName',
+        type: 'input',
+        message: 'Zendesk display name',
+        default:
+          options.name && options.name.length > 0
+            ? toDisplayName(options.name)
+            : 'Zendesk App',
+      });
+    }
+
+    if (!normalizedOptions.zendeskAuthorName) {
+      prompts.push({
+        id: 'zendeskAuthorName',
+        type: 'input',
+        message: 'Zendesk author name',
+        default: undefined,
+      });
+    }
+
+    if (!normalizedOptions.zendeskAuthorEmail) {
+      prompts.push({
+        id: 'zendeskAuthorEmail',
+        type: 'input',
+        message: 'Zendesk author/support email address',
+        default: `support@${dasherizedName}.com`,
+      });
+    }
+
+    if (!normalizedOptions.zendeskDefaultLocale) {
+      prompts.push({
+        id: 'zendeskDefaultLocale',
+        type: 'input',
+        message: 'Zendesk default locale (e.g. en, fr, es)',
+        default: 'en',
+      });
+    }
+
+    if (!normalizedOptions.zendeskShortDescription) {
+      prompts.push({
+        id: 'zendeskShortDescription',
+        type: 'input',
+        message: 'Zendesk short description',
+      });
+    }
+
+    if (!normalizedOptions.zendeskLongDescription) {
+      prompts.push({
+        id: 'zendeskLongDescription',
+        type: 'input',
+        message: 'Zendesk long description',
+      });
+    }
+
+    if (prompts.length === 0) {
+      return tree;
+    }
+
+    const promptResult = promptProvider(prompts);
+    const answers = isObservable(promptResult)
+      ? await lastValueFrom(promptResult)
+      : await Promise.resolve(
+          promptResult as Promise<Record<string, string>>
+        );
+
+    if (answers && typeof answers === 'object') {
+      normalizedOptions = {
+        ...normalizedOptions,
+        ...answers,
+      };
+    }
+
+    return tree;
+  };
+
   const copyZendeskDirectory: Rule = (
     tree: Tree,
     context: SchematicContext
@@ -114,6 +285,15 @@ export function schematicsDemo(options: Schema): Rule {
     }
 
     const zendeskDestinationRoot = `${projectRoot}/zendesk`;
+    const {
+      appDisplayName,
+      authorName,
+      authorEmail,
+      defaultLocale,
+      shortDescriptionOverride,
+      longDescriptionOverride,
+      templateVariables,
+    } = getZendeskContext();
 
     const toPosixPath = (filePath: string) =>
       filePath.split(path.sep).join('/');
@@ -129,6 +309,17 @@ export function schematicsDemo(options: Schema): Rule {
       ]);
       return binaryExtensions.has(path.extname(fileName).toLowerCase());
     };
+
+    const renderTemplate = (
+      templateContent: string,
+      variables: Record<string, string>
+    ) =>
+      templateContent.replace(/{{\s*([a-zA-Z0-9_]+)\s*}}/g, (match, key) => {
+        if (Object.prototype.hasOwnProperty.call(variables, key)) {
+          return variables[key];
+        }
+        return match;
+      });
 
     const copyDirectory = (currentSourceDir: string) => {
       const entries = readdirSync(currentSourceDir, { withFileTypes: true });
@@ -167,9 +358,12 @@ export function schematicsDemo(options: Schema): Rule {
               manifest.name = appDisplayName;
               manifest.author = {
                 ...manifest.author,
-                name: appDisplayName,
-                email: supportEmail,
+                name: authorName,
+                email: authorEmail,
               };
+              if (defaultLocale) {
+                manifest.defaultLocale = defaultLocale;
+              }
               content = JSON.stringify(manifest, null, 2) + '\n';
             } catch (error) {
               context.logger.warn(
@@ -177,48 +371,50 @@ export function schematicsDemo(options: Schema): Rule {
               );
               content = fileText;
             }
-          } else if (posixRelativePath === 'translations/en.json') {
+          } else if (
+            posixRelativePath.startsWith('translations/') &&
+            posixRelativePath.endsWith('.json')
+          ) {
             try {
               const translations = JSON.parse(fileText);
+              const appTranslations = translations.app ?? {};
+              const shortDescription =
+                shortDescriptionOverride ??
+                (appTranslations.short_description
+                  ? appTranslations.short_description.replace(
+                      /zen tunes/gi,
+                      appDisplayName
+                    )
+                  : `${appDisplayName} short description.`);
+              const longDescription =
+                longDescriptionOverride ??
+                (appTranslations.long_description
+                  ? appTranslations.long_description.replace(
+                      /zen tunes/gi,
+                      appDisplayName
+                    )
+                  : `${appDisplayName} long description.`);
               translations.app = {
-                ...translations.app,
+                ...appTranslations,
                 name: appDisplayName,
-                short_description: translations.app?.short_description
-                  ? translations.app.short_description.replace(
-                      /zen tunes/gi,
-                      appDisplayName
-                    )
-                  : `${appDisplayName} short description.`,
-                long_description: translations.app?.long_description
-                  ? translations.app.long_description.replace(
-                      /zen tunes/gi,
-                      appDisplayName
-                    )
-                  : `${appDisplayName} long description.`,
+                short_description: shortDescription,
+                long_description: longDescription,
               };
               content = JSON.stringify(translations, null, 2) + '\n';
             } catch (error) {
               context.logger.warn(
-                `Failed to template translations/en.json: ${
+                `Failed to template ${posixRelativePath}: ${
                   (error as Error).message
                 }`
               );
               content = fileText;
             }
           } else if (posixRelativePath === 'README.md') {
-            const templatedReadme = fileText.replace(
-              /^# .+$/m,
-              `# ${appDisplayName}`
-            );
-            content = templatedReadme;
+            content = renderTemplate(fileText, templateVariables);
           } else if (posixRelativePath === 'assets/iframe.html') {
-            const templatedIframe = fileText.replace(
-              /Hello, World!/g,
-              `Hello from ${appDisplayName}!`
-            );
-            content = templatedIframe;
+            content = renderTemplate(fileText, templateVariables);
           } else {
-            content = fileText;
+            content = renderTemplate(fileText, templateVariables);
           }
         }
 
@@ -257,6 +453,7 @@ export function schematicsDemo(options: Schema): Rule {
   };
 
   return chain([
+    promptForZendeskOptions,
     externalSchematic('@schematics/angular', 'ng-new', {
       name: normalizedOptions.name,
       version: angularCliVersion,

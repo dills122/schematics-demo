@@ -1,6 +1,6 @@
-# App name
+# {{appDisplayName}}
 
-[brief description of the app]
+{{readmeDescription}}
 
 ### The following information is displayed:
 
@@ -8,7 +8,7 @@
 * info2
 * info3
 
-Please submit bug reports to [Insert Link](). Pull requests are welcome.
+Please submit bug reports to [{{authorEmail}}](mailto:{{authorEmail}}). Pull requests are welcome.
 
 ### Screenshot(s):
 [put your screenshots down here.]
