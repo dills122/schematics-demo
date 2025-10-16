@@ -4,7 +4,11 @@
   "description": "A blank schematics",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "npm run build && jasmine src/**/*_spec.js"
+    "test": "npm run build && jasmine src/**/*_spec.js",
+    "nuke": "npx rimraf ./.schematics/*",
+    "generate:dry": "schematics ./src/collection.json:schematics-demo --name dev-app --skip-install",
+    "generate:test": "schematics ./src/collection.json:schematics-demo --name dev-app --skip-install --debug=false",
+    "scaffold": "npm run nuke && npm run build && npm run generate:test"
   },
   "keywords": [
     "schematics"
@@ -15,11 +19,14 @@
   "dependencies": {
     "@angular-devkit/core": "^20.3.6",
     "@angular-devkit/schematics": "^20.3.6",
+    "@schematics/angular": "^20.3.6",
+    "rimraf": "^6.0.1",
     "typescript": "~5.9.2"
   },
   "devDependencies": {
-    "@types/node": "^20.17.19",
+    "@angular-devkit/schematics-cli": "^20.3.6",
     "@types/jasmine": "~5.1.0",
+    "@types/node": "^20.17.19",
     "jasmine": "^5.0.0"
   }
 }

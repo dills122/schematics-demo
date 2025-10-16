@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/schema",
+  "$id": "schematics-demo",
+  "title": "Angular Application Extension Options",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name of the new Angular workspace and root application."
+    },
+    "directory": {
+      "type": "string",
+      "description": "A directory name to create the workspace in. Defaults to `.schematics/<name>` when omitted."
+    },
+    "routing": {
+      "type": "boolean",
+      "description": "When true, generates a routing module.",
+      "default": true
+    },
+    "style": {
+      "type": "string",
+      "description": "The default stylesheet format for the project.",
+      "enum": ["css", "scss", "sass", "less"],
+      "default": "scss"
+    },
+    "standalone": {
+      "type": "boolean",
+      "description": "Generate the application bootstrapped using standalone APIs.",
+      "default": true
+    },
+    "zoneless": {
+      "type": "boolean",
+      "description": "Create the application without zone.js.",
+      "default": true
+    },
+    "skipInstall": {
+      "type": "boolean",
+      "description": "Do not install dependency packages.",
+      "default": true
+    }
+  },
+  "required": ["name"],
+  "additionalProperties": false
+}
