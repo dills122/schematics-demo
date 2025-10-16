@@ -24,6 +24,13 @@ const filesToCopy = [
   },
 ];
 
+const directoriesToCopy = [
+  {
+    source: path.join(projectRoot, 'zendesk'),
+    destination: path.join(distRoot, 'zendesk'),
+  },
+];
+
 try {
   for (const { source, destination } of filesToCopy) {
     if (!fs.existsSync(source)) {
@@ -33,6 +40,16 @@ try {
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     fs.copyFileSync(source, destination);
   }
+
+  for (const { source, destination } of directoriesToCopy) {
+    if (!fs.existsSync(source)) {
+      console.warn(`Skipping missing directory asset at ${source}`);
+      continue;
+    }
+
+    fs.cpSync(source, destination, { recursive: true, force: true });
+  }
+
   console.log('Copied schematic assets to dist/');
 } catch (error) {
   console.error('Failed to copy schematic assets:', error);

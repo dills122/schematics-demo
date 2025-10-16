@@ -34,5 +34,11 @@ describe('schematics-demo', () => {
     expect(tree.files).toContain(`/${workspaceDirectory}/src/styles.scss`);
     expect(tree.files).not.toContain(`/${workspaceDirectory}/src/styles.css`);
     expect(tree.files).not.toContain(`/${workspaceDirectory}/src/main.server.ts`);
+    expect(tree.files).toContain(
+      `/${workspaceDirectory}/zendesk/manifest.json`
+    );
+    expect(tree.files).toContain(
+      `/${workspaceDirectory}/zendesk/translations/en.json`
+    );
   });
 });

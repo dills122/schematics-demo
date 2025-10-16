@@ -66,3 +66,11 @@ When ready, push the release to npm:
 ```bash
 npm publish
 ```
+
+### Zendesk
+
+To generate new zendesk data, use this command
+
+```bash
+npx @zendesk/zcli apps:new
+```

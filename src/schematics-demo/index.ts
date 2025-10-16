@@ -7,6 +7,8 @@ import {
 } from '@angular-devkit/schematics';
 import { strings } from '@angular-devkit/core';
 import { Schema } from './schema';
+import { readFileSync, readdirSync, statSync } from 'fs';
+import * as path from 'path';
 
 const { version: angularCliVersion } = require('@schematics/angular/package.json') as {
   version: string;
@@ -67,6 +69,74 @@ export function schematicsDemo(options: Schema): Rule {
     return tree;
   };
 
+  const copyZendeskDirectory: Rule = (
+    tree: Tree,
+    context: SchematicContext
+  ) => {
+    const sourceCandidates = [
+      path.resolve(__dirname, '..', '..', 'zendesk'),
+      path.resolve(__dirname, '..', '..', '..', 'zendesk'),
+    ];
+
+    const zendeskSourceDir = sourceCandidates.find((candidate) => {
+      try {
+        return statSync(candidate).isDirectory();
+      } catch {
+        return false;
+      }
+    });
+
+    if (!zendeskSourceDir) {
+      context.logger.warn(
+        'Zendesk directory not found. Skipping zendesk asset copy.'
+      );
+      return tree;
+    }
+
+    const zendeskDestinationRoot = `${projectRoot}/zendesk`;
+
+    const copyDirectory = (currentSourceDir: string) => {
+      const entries = readdirSync(currentSourceDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const entrySourcePath = path.join(currentSourceDir, entry.name);
+        const relativePath = path
+          .relative(zendeskSourceDir, entrySourcePath)
+          .split(path.sep)
+          .join('/');
+        const entryDestinationPath = `${zendeskDestinationRoot}/${relativePath}`.replace(
+          /\\/g,
+          '/'
+        );
+
+        if (entry.isDirectory()) {
+          copyDirectory(entrySourcePath);
+          continue;
+        }
+
+        if (!entry.isFile()) {
+          continue;
+        }
+
+        const content = readFileSync(entrySourcePath);
+
+        if (tree.exists(entryDestinationPath)) {
+          tree.overwrite(entryDestinationPath, content);
+        } else {
+          tree.create(entryDestinationPath, content);
+        }
+      }
+    };
+
+    copyDirectory(zendeskSourceDir);
+
+    context.logger.info(
+      `Copied zendesk assets into ${zendeskDestinationRoot}.`
+    );
+
+    return tree;
+  };
+
   return chain([
     externalSchematic('@schematics/angular', 'ng-new', {
       name: normalizedOptions.name,
@@ -81,5 +151,6 @@ export function schematicsDemo(options: Schema): Rule {
       aiConfig: ['none'],
     }),
     extendPackageJson,
+    copyZendeskDirectory,
   ]);
 }
