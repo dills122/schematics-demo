@@ -18,6 +18,26 @@ export function schematicsDemo(options: Schema): Rule {
   const dasherizedName = strings.dasherize(options.name);
   const defaultDirectory = options.directory ?? `.schematics/${dasherizedName}`;
 
+  const toDisplayName = (value: string): string => {
+    const spaced = value
+      .replace(/[-_\s]+/g, ' ')
+      .replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+
+    return spaced
+      .split(' ')
+      .filter(Boolean)
+      .map(
+        (part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()
+      )
+      .join(' ');
+  };
+
+  const appDisplayName =
+    options.name && options.name.length > 0
+      ? toDisplayName(options.name)
+      : 'Zendesk App';
+  const supportEmail = `support@${dasherizedName}.com`;
+
   const normalizedOptions = {
     ...options,
     name: dasherizedName,
@@ -95,6 +115,21 @@ export function schematicsDemo(options: Schema): Rule {
 
     const zendeskDestinationRoot = `${projectRoot}/zendesk`;
 
+    const toPosixPath = (filePath: string) =>
+      filePath.split(path.sep).join('/');
+
+    const isBinaryFile = (fileName: string) => {
+      const binaryExtensions = new Set([
+        '.png',
+        '.jpg',
+        '.jpeg',
+        '.gif',
+        '.ico',
+        '.svg',
+      ]);
+      return binaryExtensions.has(path.extname(fileName).toLowerCase());
+    };
+
     const copyDirectory = (currentSourceDir: string) => {
       const entries = readdirSync(currentSourceDir, { withFileTypes: true });
 
@@ -118,7 +153,74 @@ export function schematicsDemo(options: Schema): Rule {
           continue;
         }
 
-        const content = readFileSync(entrySourcePath);
+        let content: Buffer | string;
+
+        if (isBinaryFile(entry.name)) {
+          content = readFileSync(entrySourcePath);
+        } else {
+          const fileText = readFileSync(entrySourcePath, 'utf-8');
+          const posixRelativePath = toPosixPath(relativePath);
+
+          if (posixRelativePath === 'manifest.json') {
+            try {
+              const manifest = JSON.parse(fileText);
+              manifest.name = appDisplayName;
+              manifest.author = {
+                ...manifest.author,
+                name: appDisplayName,
+                email: supportEmail,
+              };
+              content = JSON.stringify(manifest, null, 2) + '\n';
+            } catch (error) {
+              context.logger.warn(
+                `Failed to template manifest.json: ${(error as Error).message}`
+              );
+              content = fileText;
+            }
+          } else if (posixRelativePath === 'translations/en.json') {
+            try {
+              const translations = JSON.parse(fileText);
+              translations.app = {
+                ...translations.app,
+                name: appDisplayName,
+                short_description: translations.app?.short_description
+                  ? translations.app.short_description.replace(
+                      /zen tunes/gi,
+                      appDisplayName
+                    )
+                  : `${appDisplayName} short description.`,
+                long_description: translations.app?.long_description
+                  ? translations.app.long_description.replace(
+                      /zen tunes/gi,
+                      appDisplayName
+                    )
+                  : `${appDisplayName} long description.`,
+              };
+              content = JSON.stringify(translations, null, 2) + '\n';
+            } catch (error) {
+              context.logger.warn(
+                `Failed to template translations/en.json: ${
+                  (error as Error).message
+                }`
+              );
+              content = fileText;
+            }
+          } else if (posixRelativePath === 'README.md') {
+            const templatedReadme = fileText.replace(
+              /^# .+$/m,
+              `# ${appDisplayName}`
+            );
+            content = templatedReadme;
+          } else if (posixRelativePath === 'assets/iframe.html') {
+            const templatedIframe = fileText.replace(
+              /Hello, World!/g,
+              `Hello from ${appDisplayName}!`
+            );
+            content = templatedIframe;
+          } else {
+            content = fileText;
+          }
+        }
 
         if (tree.exists(entryDestinationPath)) {
           tree.overwrite(entryDestinationPath, content);
@@ -129,6 +231,23 @@ export function schematicsDemo(options: Schema): Rule {
     };
 
     copyDirectory(zendeskSourceDir);
+
+    const zcliConfigPath = `${projectRoot}/zcli.json`;
+    const zcliConfig = {
+      apps: [
+        {
+          name: appDisplayName,
+          manifest: 'zendesk/manifest.json',
+        },
+      ],
+    };
+    const zcliContent = JSON.stringify(zcliConfig, null, 2) + '\n';
+
+    if (tree.exists(zcliConfigPath)) {
+      tree.overwrite(zcliConfigPath, zcliContent);
+    } else {
+      tree.create(zcliConfigPath, zcliContent);
+    }
 
     context.logger.info(
       `Copied zendesk assets into ${zendeskDestinationRoot}.`
